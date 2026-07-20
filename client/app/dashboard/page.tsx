@@ -7,19 +7,18 @@ import { motion } from "framer-motion";
 import {
   LogOut,
   TrendingUp,
-  TrendingDown,
   Clock,
   AlertTriangle,
   CheckCircle2,
   Target,
   BookOpen,
   ArrowRight,
+  AlertCircle,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth-context";
 import dashboardApi from "@/lib/api/dashboard";
 import type {
-  DashboardData,
   SubjectAttendance,
   TodayTimetableEntry,
 } from "@/lib/api/dashboard";
@@ -27,6 +26,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/shared/loading-spinner";
 import { cn } from "@/lib/utils";
+
+import { SetupProvider, useSetup } from "@/app/setup/components/setup-provider";
+import { SetupProgress } from "@/app/setup/components/setup-progress";
+import { StepProfileVerification } from "@/app/setup/components/step-profile-verification";
+import { StepTimetableUpload } from "@/app/setup/components/step-timetable-upload";
+import { StepCalendarUpload } from "@/app/setup/components/step-calendar-upload";
+import { StepComplete } from "@/app/setup/components/step-complete";
 
 const STATUS_COLORS: Record<string, string> = {
   present: "bg-green-500/10 text-green-600 border-green-500/20",
@@ -219,7 +225,101 @@ function TimetableCard({ entry }: { entry: TodayTimetableEntry }) {
   );
 }
 
-export default function DashboardPage() {
+function DashboardHeader({
+  user,
+  onLogout,
+}: {
+  user: { name?: string; email?: string } | null;
+  onLogout: () => Promise<void>;
+}) {
+  return (
+    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+            AP
+          </div>
+          <span className="font-semibold">
+            Attendance
+            <span className="text-muted-foreground font-normal">Pro</span>
+          </span>
+        </div>
+        <nav className="flex items-center gap-1">
+          <a href="/attendance">
+            <Button variant="ghost" size="sm">
+              Attendance
+            </Button>
+          </a>
+          <a href="/analytics">
+            <Button variant="ghost" size="sm">
+              Analytics
+            </Button>
+          </a>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => void onLogout()}
+            className="gap-2"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+function SetupWizardInline() {
+  const { currentStep } = useSetup();
+
+  const renderStep = () => {
+    switch (currentStep) {
+      case 0:
+        return <StepProfileVerification />;
+      case 1:
+        return <StepTimetableUpload />;
+      case 2:
+        return <StepCalendarUpload />;
+      case 3:
+        return <StepComplete />;
+      default:
+        return <StepProfileVerification />;
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+      <div className="mb-6 rounded-lg border border-amber-200 bg-amber-500/5 p-4">
+        <div className="flex items-start gap-3">
+          <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          <div>
+            <p className="font-medium text-amber-800">
+              Complete your setup before using Attendance Pro
+            </p>
+            <p className="mt-1 text-sm text-amber-700">
+              Upload your timetable and academic calendar to start tracking
+              your attendance.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <SetupProgress currentStep={currentStep} />
+
+      <motion.div
+        key={currentStep}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {renderStep()}
+      </motion.div>
+    </div>
+  );
+}
+
+function DashboardContent() {
   const { user, isAuthenticated, isLoading, logout, needsOnboarding } =
     useAuth();
   const router = useRouter();
@@ -228,10 +328,7 @@ export default function DashboardPage() {
     if (!isLoading && !isAuthenticated) {
       router.replace("/login");
     }
-    if (!isLoading && isAuthenticated && needsOnboarding) {
-      router.replace("/setup");
-    }
-  }, [isLoading, isAuthenticated, needsOnboarding, router]);
+  }, [isLoading, isAuthenticated, router]);
 
   const { data: dashboardData, isLoading: dataLoading } = useQuery({
     queryKey: ["dashboard"],
@@ -246,10 +343,21 @@ export default function DashboardPage() {
     enabled: isAuthenticated && !needsOnboarding,
   });
 
-  if (isLoading || !isAuthenticated || needsOnboarding) {
+  if (isLoading || !isAuthenticated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  if (needsOnboarding) {
+    return (
+      <div className="flex min-h-screen flex-col">
+        <DashboardHeader user={user} onLogout={logout} />
+        <main className="flex-1">
+          <SetupWizardInline />
+        </main>
       </div>
     );
   }
@@ -418,47 +526,10 @@ export default function DashboardPage() {
   );
 }
 
-function DashboardHeader({
-  user,
-  onLogout,
-}: {
-  user: { name?: string; email?: string } | null;
-  onLogout: () => Promise<void>;
-}) {
+export default function DashboardPage() {
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-            AP
-          </div>
-          <span className="font-semibold">
-            Attendance
-            <span className="text-muted-foreground font-normal">Pro</span>
-          </span>
-        </div>
-        <nav className="flex items-center gap-1">
-          <a href="/attendance">
-            <Button variant="ghost" size="sm">
-              Attendance
-            </Button>
-          </a>
-          <a href="/analytics">
-            <Button variant="ghost" size="sm">
-              Analytics
-            </Button>
-          </a>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => void onLogout()}
-            className="gap-2"
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </nav>
-      </div>
-    </header>
+    <SetupProvider>
+      <DashboardContent />
+    </SetupProvider>
   );
 }

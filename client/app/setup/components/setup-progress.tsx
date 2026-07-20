@@ -6,15 +6,17 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STEPS = [
-  { label: "Upload Files", completed: false },
-  { label: "Dashboard", completed: false },
+  { label: "Profile" },
+  { label: "Timetable" },
+  { label: "Calendar" },
+  { label: "Finish" },
 ];
 
 interface SetupProgressProps {
-  currentStep?: number;
+  currentStep: number;
 }
 
-export function SetupProgress({ currentStep = 0 }: SetupProgressProps) {
+export function SetupProgress({ currentStep }: SetupProgressProps) {
   return (
     <div className="mb-8">
       <div className="flex items-center justify-between">
@@ -59,7 +61,7 @@ export function SetupProgress({ currentStep = 0 }: SetupProgressProps) {
               {index < STEPS.length - 1 && (
                 <div
                   className={cn(
-                    "mx-3 h-0.5 w-12 sm:w-24",
+                    "mx-2 h-0.5 w-8 sm:w-16",
                     index < currentStep ? "bg-green-500" : "bg-muted",
                   )}
                 />

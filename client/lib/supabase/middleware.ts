@@ -1,1 +1,1 @@
-DEPRECATED: Use client/middleware.ts instead. This file should be deleted.
+DEPRECATED: This file has been replaced by client/middleware.ts at the project root.

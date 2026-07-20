@@ -87,7 +87,7 @@ export default function AnalyticsPage() {
       router.replace("/login");
     }
     if (!isLoading && isAuthenticated && needsOnboarding) {
-      router.replace("/setup");
+      router.replace("/dashboard");
     }
   }, [isLoading, isAuthenticated, needsOnboarding, router]);
 

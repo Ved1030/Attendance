@@ -9,7 +9,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import filesApi, { type UploadFileResult } from "@/lib/api/files";
@@ -35,7 +34,12 @@ type FileState = {
 
 type DisplayStatus = "idle" | "uploading" | "success" | "processing" | "completed" | "error";
 
+const TOTAL_STEPS = 4;
+
 interface SetupContextValue {
+  currentStep: number;
+  nextStep: () => void;
+  prevStep: () => void;
   timetableState: FileState;
   calendarState: FileState;
   timetableDisplayStatus: DisplayStatus;
@@ -76,8 +80,8 @@ function getDisplayStatus(state: FileState): DisplayStatus {
 }
 
 export function SetupProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
   const { refreshProfile } = useAuth();
+  const [currentStep, setCurrentStep] = useState(0);
   const [timetableState, setTimetableState] = useState<FileState>(INITIAL_FILE_STATE);
   const [calendarState, setCalendarState] = useState<FileState>(INITIAL_FILE_STATE);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,6 +93,14 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
         cleanup();
       }
     };
+  }, []);
+
+  const nextStep = useCallback(() => {
+    setCurrentStep((prev) => Math.min(prev + 1, TOTAL_STEPS - 1));
+  }, []);
+
+  const prevStep = useCallback(() => {
+    setCurrentStep((prev) => Math.max(prev - 1, 0));
   }, []);
 
   const startPolling = useCallback(
@@ -120,7 +132,7 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
   );
 
   const triggerProcessing = useCallback(
-    async (fileId: string, fileType: FileTypeValue, storagePath: string, fileName: string) => {
+    async (fileId: string, fileType: FileTypeValue, storagePath: string, _fileName: string) => {
       const setter = fileType === FILE_TYPE.TIMETABLE ? setTimetableState : setCalendarState;
       setter((prev) => ({
         ...prev,
@@ -295,7 +307,6 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
         toast.success("Setup complete!", {
           description: "Welcome to Attendance Pro!",
         });
-        router.push("/dashboard");
       } else {
         toast.error("Setup failed", { description: result.message });
       }
@@ -304,7 +315,7 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsSubmitting(false);
     }
-  }, [refreshProfile, router]);
+  }, [refreshProfile]);
 
   const timetableDisplayStatus = getDisplayStatus(timetableState);
   const calendarDisplayStatus = getDisplayStatus(calendarState);
@@ -314,22 +325,29 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
   const timetableProcessingStep = timetableState.processingStatus?.currentStep ?? null;
   const calendarProcessingStep = calendarState.processingStatus?.currentStep ?? null;
 
-  const bothCompleted = timetableDisplayStatus === "completed" && calendarDisplayStatus === "completed";
-  const anyFailed = timetableDisplayStatus === "error" || calendarDisplayStatus === "error";
+  const timetableReady = timetableDisplayStatus === "completed" || timetableDisplayStatus === "idle";
+  const calendarReady = calendarDisplayStatus === "completed" || calendarDisplayStatus === "idle";
 
-  useEffect(() => {
-    if (bothCompleted && !isSubmitting) {
-      const timer = setTimeout(() => {
-        completeSetup();
-      }, 1500);
-      return () => clearTimeout(timer);
+  const canContinue = useMemo(() => {
+    switch (currentStep) {
+      case 0:
+        return true;
+      case 1:
+        return timetableReady;
+      case 2:
+        return calendarReady;
+      case 3:
+        return !isSubmitting;
+      default:
+        return false;
     }
-  }, [bothCompleted, isSubmitting, completeSetup]);
-
-  const canContinue = bothCompleted && !isSubmitting;
+  }, [currentStep, timetableReady, calendarReady, isSubmitting]);
 
   const value = useMemo<SetupContextValue>(
     () => ({
+      currentStep,
+      nextStep,
+      prevStep,
       timetableState,
       calendarState,
       timetableDisplayStatus,
@@ -347,6 +365,9 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
       completeSetup,
     }),
     [
+      currentStep,
+      nextStep,
+      prevStep,
       timetableState,
       calendarState,
       timetableDisplayStatus,

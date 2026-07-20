@@ -1,14 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { CheckCircle2, ArrowRight } from "lucide-react";
+import { CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
 
 import { useSetup } from "./setup-provider";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
+import { Button } from "@/components/ui/button";
 
 export function StepComplete() {
-  const { finishSetup, isSubmitting } = useSetup();
+  const { completeSetup, isSubmitting } = useSetup();
   const { user } = useAuth();
 
   return (
@@ -31,7 +31,9 @@ export function StepComplete() {
       >
         <h1 className="text-2xl font-bold tracking-tight">All Set!</h1>
         <p className="text-muted-foreground">
-          {user?.name ? `Welcome, ${user.name}! ` : "Welcome! "}
+          {user?.user_metadata?.full_name
+            ? `Welcome, ${user.user_metadata.full_name}! `
+            : "Welcome! "}
           Your timetable and academic calendar have been saved. You&apos;re
           ready to start tracking your attendance.
         </p>
@@ -44,12 +46,21 @@ export function StepComplete() {
       >
         <Button
           size="lg"
-          onClick={finishSetup}
+          onClick={completeSetup}
           disabled={isSubmitting}
           className="px-8"
         >
-          {isSubmitting ? "Loading..." : "Go to Dashboard"}
-          {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Redirecting...
+            </>
+          ) : (
+            <>
+              Go to Dashboard
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </>
+          )}
         </Button>
       </motion.div>
     </div>
